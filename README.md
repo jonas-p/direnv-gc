@@ -25,11 +25,4 @@ removing it.
 
 For additional flags see `direnv-gc --help`.
 
-## Building
-Requires [packr](https://github.com/gobuffalo/packr).
-
-```bash
-$ packr
-$ go build
-```
 

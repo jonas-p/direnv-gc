@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"errors"
-	"github.com/gobuffalo/packr"
 	"github.com/spf13/cobra"
 )
 
@@ -111,12 +110,11 @@ func Cleanup(days int, dir string, dry bool) error {
 }
 
 func PrintHook() error {
-	box := packr.NewBox("./shell")
-	hook, err := box.FindString("hook.sh")
+	hook, err := Asset("shell/hook.sh")
 	if err != nil {
 		return errors.New("Failed to find hook, maybe it wasn't included in the build...")
 	}
-	fmt.Printf(hook)
+	fmt.Printf(string(hook))
 	return nil
 }
 
