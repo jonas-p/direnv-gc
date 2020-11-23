@@ -1,14 +1,17 @@
 # direnv-gc
-
-Extension to `direnv` that keep tracks of your direnvs and allows you to clean up unused ones.
+Extension to [direnv](https://direnv.net/) that keep tracks of your direnvs and allows you to clean up unused ones.
 
 ## Installing
+MacOS and Linux binaries are available on the [releases](https://github.com/jonas-p/direnv-gc/releases) page.
+
+You can also build and install it using Go:
 ```bash
 go get -u github.com/jonas-p/direnv-gc
 ```
 
-Add `eval "$(direnv-gc hook)"` to your direnvrc file (`~/.direnvrc` or `~/.config/direnv/direnvrc`). This
-will add a hook to direnv and update the database everytime direnv loads a new environment.
+After installing and making sure it's available in your PATH, add `eval "$(direnv-gc hook)"` to your direnvrc
+file (`~/.direnvrc` or `~/.config/direnv/direnvrc`). This will add a hook to direnv and update the database
+everytime direnv loads a new environment.
 
 ## Usage
 Run `direnv-gc` to clean up unused (10 days) environments.
