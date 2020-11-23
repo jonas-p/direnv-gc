@@ -5,13 +5,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
-	"strconv"
 	"time"
+
+	"errors"
+	"github.com/gobuffalo/packr"
+	"github.com/spf13/cobra"
 )
 
 func GetDirectorySize(path string) (size int64) {
@@ -25,24 +26,21 @@ func GetDirectorySize(path string) (size int64) {
 	return
 }
 
-func main() {
-	days, err := strconv.Atoi(os.Args[1])
-
-	if err != nil {
-		log.Fatalln("invalid argument", os.Args[1])
+func Cleanup(days int, dir string, dry bool) error {
+	mode, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return errors.New(fmt.Sprintf("Direnv store (%s) is empty, create some direnvs!", dir))
 	}
 
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatalln(err)
+	if !mode.IsDir() {
+		return errors.New(fmt.Sprintf("Direnv store (%s) exists but is not a directory, aborting.", dir))
 	}
 
-	dir := path.Join(usr.HomeDir, "/.config/direnv/store/")
 	last_modified_limit := time.Now().AddDate(0, 0, -days)
 
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var cleaned_up int64
@@ -62,7 +60,7 @@ func main() {
 		// check if sha256 path match
 		direnvPath, err := os.Readlink(path)
 		if err != nil {
-			log.Fatalln(err)
+			return err
 		}
 
 		hash := sha256.Sum256([]byte(direnvPath))
@@ -77,7 +75,7 @@ func main() {
 
 		direnv, err := os.Stat(direnvPath)
 		if err != nil && !os.IsNotExist(err) {
-			log.Fatalln(err)
+			return err
 		}
 
 		// we have two cases here
@@ -89,14 +87,72 @@ func main() {
 			cleaned_up += 1
 
 			// delete folder
-			fmt.Printf("Removing %s (%s)\n", direnvPath, entry.Name())
-			os.RemoveAll(direnvPath)
+			if !dry {
+				fmt.Printf("Removing %s (%s)\n", direnvPath, entry.Name())
+				os.RemoveAll(direnvPath)
+			} else {
+				fmt.Printf("Would remove %s (%s)\n", direnvPath, entry.Name())
+			}
 		}
 
 		// delete link
-		fmt.Printf("Removing link %s\n", entry.Name())
-		os.Remove(path)
+		if !dry {
+			os.Remove(path)
+		}
 	}
 
-	fmt.Printf("Cleaned up %d environments, saving a total of %dmb!", cleaned_up, cleaned_up_size/1024/1024)
+	saved_mb := cleaned_up_size / 1024 / 1024
+	if !dry {
+		fmt.Printf("Cleaned up %d environments, saving a total of %dmb!\n", cleaned_up, saved_mb)
+	} else {
+		fmt.Printf("Would clean up %d environments, saving a total of %dmb!\n", cleaned_up, saved_mb)
+	}
+	return nil
+}
+
+func PrintHook() error {
+	box := packr.NewBox("./shell")
+	hook, err := box.FindString("hook.sh")
+	if err != nil {
+		return errors.New("Failed to find hook, maybe it wasn't included in the build...")
+	}
+	fmt.Printf(hook)
+	return nil
+}
+
+func main() {
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	var days int
+	var storePath string
+	var dryRun bool
+
+	rootCmd := &cobra.Command{
+		Use:   "direnv-gc",
+		Short: "cleans up unused direnvs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return Cleanup(days, storePath, dryRun)
+		},
+	}
+
+	rootCmd.Flags().IntVarP(&days, "days", "d", 10, "number of days to keep")
+	rootCmd.Flags().BoolVarP(&dryRun, "dry-run", "", false, "dry run")
+	rootCmd.Flags().StringVarP(&storePath, "store-path", "", path.Join(userConfigDir, "direnv/store"), "path to store where all the direnvs are linked to")
+
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "hook",
+		Short: "prints the direnv hook",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return PrintHook()
+		},
+	})
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
