@@ -20,7 +20,7 @@ Removing /home/user/dev/project-b/.direnv (b5f140cd54a79c81e8b5083bd4245efe5d9dc
 Cleaned up 2 environments, saving a total of 10mb.
 ```
 
-You can use the flag `--days` to specify how long an environment has been inactive (unloaded) for before
+You can use the flag `--days` to specify how long an environment should have been inactive (not loaded) for before
 removing it.
 
 For additional flags see `direnv-gc --help`.
