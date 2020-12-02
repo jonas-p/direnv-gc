@@ -1,4 +1,4 @@
-direnv_store_dir=${DIRENV_STORE:-$direnv_config_dir/store}
+direnv_store_dir=${DIRENV_STORE:-${XDG_DATA_HOME:-$HOME/.local/share}/direnv/store}
 mkdir -p $direnv_store_dir
 
 # store current source_env as _source_env

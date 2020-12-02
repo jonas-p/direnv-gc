@@ -28,7 +28,7 @@ func GetDirectorySize(path string) (size int64) {
 func Cleanup(days int, dir string, dry bool) error {
 	mode, err := os.Stat(dir)
 	if os.IsNotExist(err) {
-		return errors.New(fmt.Sprintf("Direnv store (%s) is empty, create some direnvs!", dir))
+		return errors.New(fmt.Sprintf("Direnv store (%s) does not exist, create some direnvs!", dir))
 	}
 
 	if !mode.IsDir() {
@@ -118,16 +118,33 @@ func PrintHook() error {
 	return nil
 }
 
+func GetStoreDirectory() (string, error) {
+	if storeDirectory := os.Getenv("DIRENV_STORE"); storeDirectory != "" {
+		return storeDirectory, nil
+	}
+
+	dataDirectory := os.Getenv("XDG_DATA_HOME")
+	if dataDirectory == "" {
+		homeDirectory, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		dataDirectory = path.Join(homeDirectory, ".local/share/")
+	}
+
+	return path.Join(dataDirectory, "direnv/store"), nil
+}
+
 func main() {
-	userConfigDir, err := os.UserConfigDir()
+	var days int
+	var storePath string
+	var dryRun bool
+
+	storeDirectory, err := GetStoreDirectory()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	var days int
-	var storePath string
-	var dryRun bool
 
 	rootCmd := &cobra.Command{
 		Use:   "direnv-gc",
@@ -139,7 +156,7 @@ func main() {
 
 	rootCmd.Flags().IntVarP(&days, "days", "d", 10, "number of days to keep")
 	rootCmd.Flags().BoolVarP(&dryRun, "dry-run", "", false, "dry run")
-	rootCmd.Flags().StringVarP(&storePath, "store-path", "", path.Join(userConfigDir, "direnv/store"), "path to store where all the direnvs are linked to")
+	rootCmd.Flags().StringVarP(&storePath, "store-path", "", storeDirectory, "path to store where all the direnvs are linked to")
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "hook",
